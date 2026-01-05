@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
