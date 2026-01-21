@@ -62,6 +62,8 @@
                                     <th>Amount Paid</th>
                                     <th>Balance</th>
                                     <th>Invoice Date</th>
+                                    <th>payment_type</th>
+                                    <th>payment_status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -76,7 +78,9 @@
                                     <td>&#8358;{{ number_format($invoice->amount_paid, 2) }}</td>
                                     <td class="text-danger">&#8358;{{ number_format($invoice->balance, 2) }}</td>
                                     <td>{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d M, Y') }}</td>
-                                    <td>
+                                    
+                                    <td>{{ $invoice->payment_type }}</td>
+                                    <td>{{ $invoice->payment_status }}</td><td>
                                         <a href="{{ route('admin.invoices.edit-payment', $invoice->id) }}" class="btn btn-sm btn-info">Edit</a>
                                         <form action="{{ route('admin.invoices.update-payment', $invoice->id) }}" method="POST" class="d-inline-block">
                                             @csrf

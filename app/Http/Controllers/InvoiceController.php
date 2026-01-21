@@ -179,7 +179,7 @@ public function owing()
 
     // Fetch all invoices where payment_status = owing
     $invoices = Invoice::with('customer', 'shop')
-                ->where('payment_status', 'owing')
+                ->whereIn('payment_status', ['paid', 'owing'])
                 ->orderBy('invoice_date', 'desc')
                 ->get();
 
