@@ -289,6 +289,12 @@ Route::prefix('manager')->middleware(['auth','role:manager'])->group(function(){
     Route::delete('/customers/{customer}', [CustomerController::class,'destroy'])->name('manager.customers.destroy');
 });
 
+// cashier
+
+
+    Route::get('/customers', [CustomerController::class,'index'])->name('cashier.customers.index');
+    Route::post('/customers', [CustomerController::class,'store'])->name('cashier.customers.store');
+
 
 
 
