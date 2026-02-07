@@ -89,27 +89,33 @@ class InvoiceController extends Controller
 
 public function store(Request $request)
 {
+    // Decode goods JSON first
+    $request->merge([
+        'goods' => json_decode($request->goods, true)
+    ]);
+
     $request->validate([
         'customer_id' => 'required|exists:customers,id',
         'shop_id'     => 'required|exists:shops,id',
-        'goods.product_id' => 'required|exists:products,id',
-        'goods.quantity'   => 'required|numeric|min:1',
+        'goods'       => 'required|array|min:1',
+        'goods.*.product_id' => 'required|exists:products,id',
+        'goods.*.quantity'   => 'required|numeric|min:1',
         'total'       => 'required|numeric',
         'payment_type'=> 'required|in:full,part',
         'balance'     => 'nullable|numeric',
     ]);
 
-    $productId = $request->goods['product_id'];
-    $quantity  = $request->goods['quantity'];
+    $goods = $request->goods;
 
-    $product = Product::findOrFail($productId);
-
-    if ($product->stock_quantity < $quantity) {
-        return back()->with('error', 'Not enough stock');
+    // Check stock for all products
+    foreach ($goods as $item) {
+        $product = Product::findOrFail($item['product_id']);
+        if ($product->stock_quantity < $item['quantity']) {
+            return back()->with('error', "Not enough stock for {$product->name}");
+        }
     }
 
-    $product->decrement('stock_quantity', $quantity);
-
+    // Create invoice
     $status = ($request->balance > 0) ? 'owing' : 'paid';
 
     $invoice = Invoice::create([
@@ -118,28 +124,38 @@ public function store(Request $request)
         'shop_id'        => $request->shop_id,
         'invoice_number' => 'INV-' . time(),
         'invoice_date'   => now(),
-        'goods'          => $request->goods,
+        'goods'          => $goods, // Laravel casts array to JSON automatically
         'total'          => $request->total,
+        'discount'       => $request->discount ?? 0,
+        'tax'            => $request->tax ?? 0,
         'payment_type'   => $request->payment_type,
+        'amount_paid'    => $request->amount_paid ?? $request->total,
         'balance'        => $request->balance ?? 0,
         'payment_status' => $status,
     ]);
 
-    // 👇 THIS is what makes it appear on sales page
-    PurchaseItem::create([
-        'transaction_id' => $invoice->invoice_number,
-        'invoice_id'     => $invoice->id,
-        'product_id'     => $product->id,
-        'category_id'    => $product->category_id,
-        'shop_id'        => $request->shop_id,
-        'quantity'       => $quantity,
-        'total_price'    => $request->total,
-        'cashier_id'     => Auth::id(),
-        'sale_type'      => 'invoice',
-    ]);
+    // Create PurchaseItems + decrement stock
+    foreach ($goods as $item) {
+        $product = Product::findOrFail($item['product_id']);
+        $product->decrement('stock_quantity', $item['quantity']);
+
+        PurchaseItem::create([
+            'transaction_id' => $invoice->invoice_number,
+            'invoice_id'     => $invoice->id,
+            'product_id'     => $product->id,
+            'category_id'    => $product->category_id,
+            'shop_id'        => $request->shop_id,
+            'quantity'       => $item['quantity'],
+            'total_price'    => $item['total_price'],
+            'cashier_id'     => Auth::id(),
+            'sale_type'      => 'invoice',
+        ]);
+    }
 
     return back()->with('success', 'Invoice + Sale recorded');
 }
+
+
 
 
 
@@ -169,26 +185,6 @@ public function generateShareLink(Invoice $invoice)
 }
 
 
-
-// InvoiceController.php
-// public function owing()
-// {
-//     if (!in_array(Auth::user()->role, ['admin', 'manager'])) {
-//         abort(403);
-//     }
-
-//     // Fetch all invoices where payment_status = owing
-//     $invoices = Invoice::with('customer', 'shop')
-//                 ->whereIn('payment_status', ['paid', 'owing'])
-//                 ->orderBy('invoice_date', 'desc')
-//                 ->get();
-
-//     if (Auth::user()->role === 'admin') {
-//         return view('admin.invoices.owing', compact('invoices'));
-//     } else {
-//         return view('manager.invoices.owing', compact('invoices'));
-//     }
-// }
 
 public function owing()
 {
@@ -237,40 +233,6 @@ public function editPayment(Invoice $invoice)
         compact('invoice')
     );
 }
-
-// Update payment
-// public function updatePayment(Request $request, Invoice $invoice)
-// {
-//     $request->validate([
-//         'payment_type' => 'required|in:full,part',
-//         'amount_paid' => 'nullable|numeric|min:0',
-//     ]);
-
-//     $totalAmount = $invoice->total;
-
-//     if ($request->payment_type === 'full') {
-//         // FULL PAYMENT MODE — no calculation rubbish
-//         $invoice->amount_paid = $totalAmount;
-//         $invoice->balance = 0;
-//         $invoice->payment_status = 'paid';
-//         $invoice->payment_type = 'full';
-//     } else {
-//         // PART PAYMENT MODE — normal accumulation
-//         $newAmountPaid = $invoice->amount_paid + $request->amount_paid;
-//         $balance = $totalAmount - $newAmountPaid;
-
-//         $invoice->amount_paid = $newAmountPaid;
-//         $invoice->balance = max(0, $balance);
-//         $invoice->payment_status = $balance <= 0 ? 'paid' : 'owing';
-//         $invoice->payment_type = 'part';
-//     }
-
-//     $invoice->save();
-
-//     return redirect()
-//         ->route(Auth::user()->role . '.invoices.owing')
-//         ->with('success', 'Payment updated successfully!');
-// }
 
 public function updatePayment(Invoice $invoice)
 {

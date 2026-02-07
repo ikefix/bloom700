@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Product;
 
 class Invoice extends Model
 {
@@ -21,6 +22,30 @@ class Invoice extends Model
         'balance',         // ✅ add this
         'payment_status',  // ✅ add this
     ];
+
+
+public function getProductNameAttribute()
+{
+    $goods = $this->goods; // already an array thanks to $casts
+
+    if (empty($goods)) {
+        return 'Unknown Product';
+    }
+
+    // Check if single product (associative array with 'product_id')
+    if (isset($goods['product_id'])) {
+        return Product::where('id', $goods['product_id'])->value('name') ?? 'Unknown Product';
+    }
+
+    // Multiple products (indexed array)
+    $productIds = array_column($goods, 'product_id');
+    $names = Product::whereIn('id', $productIds)->pluck('name')->toArray();
+
+    return implode(', ', $names);
+}
+
+
+
     
 
     protected $casts = [
@@ -49,11 +74,21 @@ class Invoice extends Model
         return json_decode($this->goods, true);
     }
 
-    public function getQuantityAttribute()
-    {
-        $goods = $this->goods_array;
-        return $goods['quantity'] ?? 0;
+public function getQuantityAttribute()
+{
+    $goods = $this->goods; // already an array
+
+    if (empty($goods)) return 0;
+
+    // Single product
+    if (isset($goods['quantity'])) {
+        return $goods['quantity'];
     }
+
+    // Multiple products
+    return array_sum(array_column($goods, 'quantity'));
+}
+
 
 }
 

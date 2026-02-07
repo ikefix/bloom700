@@ -59,7 +59,7 @@
                                     <th>#</th>
                                     <th>Customer</th>
                                     <th>Shop</th>
-                                    <th>Invoice #</th>
+                                    <th>Goods</th>
                                     <th>Total</th>
                                     <th>Quantity</th>
                                     <th>Amount Paid</th>
@@ -76,9 +76,14 @@
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $invoice->customer->name }}</td>
                                     <td>{{ $invoice->shop->name }}</td>
-                                    <td>{{ $invoice->invoice_number }}</td>
+                                    <td>
+                                        {{ $invoice->product_name }}
+                                    </td>
+
+
+
                                     <td>&#8358;{{ number_format($invoice->total, 2) }}</td>
-                                    <td>{{ $invoice->goods['quantity'] ?? 0 }}</td>
+                                    <td>{{ $invoice->quantity }}</td>
                                     <td>&#8358;{{ number_format($invoice->amount_paid, 2) }}</td>
                                     <td class="text-danger">&#8358;{{ number_format($invoice->balance, 2) }}</td>
                                     <td>{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d M, Y') }}</td>
